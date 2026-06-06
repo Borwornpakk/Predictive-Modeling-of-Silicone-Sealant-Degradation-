@@ -1,0 +1,51 @@
+{
+  "classifier": {
+    "accuracy": 0.975,
+    "f1_pass": 0.9669,
+    "f1_fail": 0.9799,
+    "roc_auc": 0.9981,
+    "cv_f1_mean": 0.8475,
+    "cv_auc_mean": 0.9953,
+    "confusion_matrix": [
+      [
+        122,
+        3
+      ],
+      [
+        2,
+        73
+      ]
+    ],
+    "feature_importance": {
+      "temp_celsius": 0.1432,
+      "uv_hours": 0.0716,
+      "relative_humidity": 0.0031,
+      "arrhenius_factor": 0.1874,
+      "effective_dose_h": 0.5947
+    },
+    "n_train": 800,
+    "n_test": 200
+  },
+  "regressor": {
+    "mae": 1.941,
+    "rmse": 2.621,
+    "r2": 0.9867,
+    "cv_r2": -0.8239,
+    "feature_importance": {
+      "temp_celsius": 0.1289,
+      "uv_hours": 0.1238,
+      "relative_humidity": 0.0044,
+      "arrhenius_factor": 0.1804,
+      "effective_dose_h": 0.5626
+    },
+    "n_train": 800,
+    "n_test": 200
+  },
+  "features": [
+    "temp_celsius",
+    "uv_hours",
+    "relative_humidity",
+    "arrhenius_factor",
+    "effective_dose_h"
+  ]
+}
