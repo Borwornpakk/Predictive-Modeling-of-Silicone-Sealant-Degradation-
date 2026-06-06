@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DOWSIL 795 — Degradation Predictor</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0f1117;
+  --bg2:      #161b27;
+  --bg3:      #1e2535;
+  --border:   #2a3245;
+  --border2:  #354060;
+  --text:     #e8eaf2;
+  --text2:    #8b93a8;
+  --text3:    #555f75;
+  --blue:     #3b7fe8;
+  --blue2:    #1a56db;
+  --green:    #22c55e;
+  --amber:    #f59e0b;
+  --red:      #ef4444;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'Sarabun', sans-serif;
+}
+
+body {
+  font-family: var(--sans);
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 340px 1fr;
+  grid-template-rows: auto 1fr;
+}
+
+/* ── Header ── */
+header {
+  grid-column: 1 / -1;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+  padding: 14px 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.logo-mark {
+  width: 36px; height: 36px;
+  background: var(--blue2);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 700; color: #fff;
+  flex-shrink: 0;
+}
+header h1 { font-size: 16px; font-weight: 600; }
+header p  { font-size: 12px; color: var(--text2); margin-top: 1px; }
+.model-badge {
+  margin-left: auto;
+  font-size: 11px; font-family: var(--mono);
+  padding: 4px 10px; border-radius: 99px;
+  background: rgba(59,127,232,.15);
+  border: 1px solid rgba(59,127,232,.3);
+  color: #93bbf8;
+}
+
+/* ── Sidebar ── */
+aside {
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  padding: 24px 20px;
+  display: flex; flex-direction: column; gap: 24px;
+  overflow-y: auto;
+}
+
+.section-title {
+  font-size: 10px; font-weight: 600; letter-spacing: .1em;
+  text-transform: uppercase; color: var(--text3);
+  margin-bottom: 14px;
+}
+
+/* ── Sliders ── */
+.input-group { display: flex; flex-direction: column; gap: 10px; }
+.slider-wrap { position: relative; }
+.slider-label {
+  display: flex; justify-content: space-between;
+  align-items: baseline; margin-bottom: 8px;
+}
+.slider-label span { font-size: 13px; color: var(--text2); }
+.slider-label strong {
+  font-family: var(--mono); font-size: 15px; font-weight: 500; color: var(--text);
+}
+input[type=range] {
+  -webkit-appearance: none;
+  width: 100%; height: 4px;
+  background: var(--border2); border-radius: 2px; outline: none;
+}
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--blue); cursor: pointer;
+  border: 2px solid var(--bg2);
+  box-shadow: 0 0 0 2px rgba(59,127,232,.3);
+  transition: box-shadow .15s;
+}
+input[type=range]:hover::-webkit-slider-thumb { box-shadow: 0 0 0 4px rgba(59,127,232,.3); }
+.range-ends { display: flex; justify-content: space-between; font-size: 10px; color: var(--text3); font-family: var(--mono); margin-top: 4px; }
+
+/* ── Presets ── */
+.preset-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.preset-btn {
+  background: var(--bg3); border: 1px solid var(--border);
+  color: var(--text2); font-family: var(--sans);
+  font-size: 11px; padding: 7px 8px; border-radius: 6px;
+  cursor: pointer; text-align: left; line-height: 1.4;
+  transition: all .15s;
+}
+.preset-btn:hover { border-color: var(--blue); color: var(--text); background: rgba(59,127,232,.08); }
+.preset-btn.active { border-color: var(--blue); background: rgba(59,127,232,.15); color: #93bbf8; }
+.preset-btn .temp-tag { font-family: var(--mono); font-size: 10px; color: var(--text3); display: block; margin-top: 2px; }
+
+/* ── Predict button ── */
+#btnPredict {
+  width: 100%; padding: 13px;
+  background: var(--blue2); color: #fff;
+  border: none; border-radius: 8px;
+  font-family: var(--sans); font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+#btnPredict:hover { background: #1648c8; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(26,86,219,.4); }
+#btnPredict:active { transform: translateY(0); }
+#btnPredict:disabled { background: var(--border); color: var(--text3); transform: none; box-shadow: none; cursor: not-allowed; }
+.spinner {
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,.3);
+  border-top-color: #fff; border-radius: 50%;
+  animation: spin .7s linear infinite; display: none;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Main area ── */
+main {
+  padding: 24px 28px;
+  display: flex; flex-direction: column; gap: 20px;
+  overflow-y: auto;
+}
+
+/* ── Result cards ── */
+.result-grid {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px;
+}
+.result-card {
+  background: var(--bg2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 16px 18px;
+  transition: border-color .3s;
+}
+.result-card.highlight { border-color: var(--blue); }
+.rc-label { font-size: 11px; color: var(--text3); margin-bottom: 4px; }
+.rc-val { font-size: 26px; font-weight: 600; font-family: var(--mono); line-height: 1.1; }
+.rc-sub { font-size: 11px; color: var(--text2); margin-top: 4px; }
+.rc-val.green { color: var(--green); }
+.rc-val.amber { color: var(--amber); }
+.rc-val.red   { color: var(--red); }
+.rc-val.blue  { color: #93bbf8; }
+
+/* ── Verdict banner ── */
+.verdict-banner {
+  border-radius: 10px; padding: 16px 20px;
+  display: flex; align-items: center; gap: 14px;
+  border: 1px solid;
+}
+.verdict-banner.pass { background: rgba(34,197,94,.08); border-color: rgba(34,197,94,.3); }
+.verdict-banner.fail { background: rgba(239,68,68,.08); border-color: rgba(239,68,68,.3); }
+.verdict-icon { font-size: 28px; }
+.verdict-title { font-size: 18px; font-weight: 700; }
+.verdict-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.verdict-conf { margin-left: auto; text-align: right; }
+.verdict-conf .conf-num { font-family: var(--mono); font-size: 22px; font-weight: 600; }
+.verdict-conf .conf-lbl { font-size: 10px; color: var(--text3); }
+
+/* ── Progress bars ── */
+.bar-section { background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; }
+.bar-row { margin-bottom: 14px; }
+.bar-row:last-child { margin-bottom: 0; }
+.bar-header { display: flex; justify-content: space-between; margin-bottom: 7px; font-size: 12px; }
+.bar-header span { color: var(--text2); }
+.bar-header strong { font-family: var(--mono); }
+.bar-track { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 1s cubic-bezier(.4,0,.2,1); width: 0; }
+.bar-fill.elong { background: linear-gradient(to right, var(--green), var(--amber), var(--red)); }
+.bar-fill.tensile { background: linear-gradient(to right, #3b7fe8, var(--amber), var(--red)); }
+
+/* ── Physics panel ── */
+.physics-panel {
+  background: var(--bg2); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px;
+}
+.physics-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.phy-item { background: var(--bg3); border-radius: 6px; padding: 10px 12px; }
+.phy-label { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-bottom: 3px; }
+.phy-val { font-size: 15px; font-weight: 500; font-family: var(--mono); }
+
+/* ── Recommendation ── */
+.rec-box {
+  background: rgba(59,127,232,.08);
+  border: 1px solid rgba(59,127,232,.25);
+  border-radius: 8px; padding: 12px 16px;
+  font-size: 13px; color: var(--text2); line-height: 1.6;
+}
+.rec-box strong { color: var(--text); }
+
+/* ── Empty state ── */
+.empty-state {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; color: var(--text3); text-align: center;
+}
+.empty-icon { font-size: 48px; opacity: .3; }
+.empty-state h2 { font-size: 16px; font-weight: 500; color: var(--text2); }
+.empty-state p { font-size: 13px; line-height: 1.6; max-width: 300px; }
+
+/* ── API status ── */
+.api-status {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: var(--text3);
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border); }
+.dot.online { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.dot.offline { background: var(--red); }
+
+/* ── Animations ── */
+.fade-in { animation: fadeIn .4s ease; }
+@keyframes fadeIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }
+
+/* ── Error banner ── */
+.err-banner {
+  background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+  border-radius: 8px; padding: 12px 16px; font-size: 12px; color: #f87171;
+  display: none;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo-mark">D7</div>
+  <div>
+    <h1>DOWSIL™ 795 — Degradation Predictor</h1>
+    <p>AI-powered sealant lifespan analysis · Random Forest Model</p>
+  </div>
+  <div class="model-badge">RF · Accuracy 97.5% · R² 0.987</div>
+</header>
+
+<!-- SIDEBAR -->
+<aside>
+  <div>
+    <div class="section-title">สถานะ API</div>
+    <div class="api-status">
+      <div class="dot" id="apiDot"></div>
+      <span id="apiLabel">กำลังเชื่อมต่อ...</span>
+    </div>
+    <div class="err-banner" id="errBanner"></div>
+  </div>
+
+  <div>
+    <div class="section-title">โหลดสถานการณ์ตัวอย่าง</div>
+    <div class="preset-grid">
+      <button class="preset-btn" onclick="loadPreset(this,25,0,55)">
+        ห้องประชุม (ร่ม)
+        <span class="temp-tag">25°C · 0h · 55%</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset(this,38,3000,75)">
+        กระจก Facade BKK
+        <span class="temp-tag">38°C · 3000h · 75%</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset(this,45,5000,65)">
+        ออฟฟิศชั้น 30
+        <span class="temp-tag">45°C · 5000h · 65%</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset(this,65,7000,80)">
+        โรงงาน (ร้อน)
+        <span class="temp-tag">65°C · 7000h · 80%</span>
+      </button>
+      <button class="preset-btn" onclick="loadPreset(this,80,10000,85)">
+        Facade อุตสาหกรรม
+        <span class="temp-tag">80°C · 10000h · 85%</span>
+      </button>
+    </div>
+  </div>
+
+  <div>
+    <div class="section-title">ป้อนข้อมูลสภาพแวดล้อม</div>
+    <div class="input-group">
+
+      <div class="slider-wrap">
+        <div class="slider-label">
+          <span>🌡 อุณหภูมิ (°C)</span>
+          <strong id="vTemp">40</strong>
+        </div>
+        <input type="range" id="sTemp" min="15" max="90" value="40" step="1"
+               oninput="document.getElementById('vTemp').textContent=this.value">
+        <div class="range-ends"><span>15°C</span><span>90°C</span></div>
+      </div>
+
+      <div class="slider-wrap">
+        <div class="slider-label">
+          <span>☀ UV exposure (h)</span>
+          <strong id="vUV">3,000</strong>
+        </div>
+        <input type="range" id="sUV" min="0" max="12000" value="3000" step="100"
+               oninput="document.getElementById('vUV').textContent=Number(this.value).toLocaleString()">
+        <div class="range-ends"><span>0h</span><span>12,000h</span></div>
+      </div>
+
+      <div class="slider-wrap">
+        <div class="slider-label">
+          <span>💧 ความชื้น RH (%)</span>
+          <strong id="vRH">65</strong>
+        </div>
+        <input type="range" id="sRH" min="20" max="100" value="65" step="1"
+               oninput="document.getElementById('vRH').textContent=this.value">
+        <div class="range-ends"><span>20%</span><span>100%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <button id="btnPredict" onclick="runPredict()">
+    <div class="spinner" id="spinner"></div>
+    <span id="btnLabel">🔮 วิเคราะห์การเสื่อมสภาพ</span>
+  </button>
+
+  <div style="font-size:10px; color:var(--text3); line-height:1.6; margin-top:auto;">
+    โมเดล Random Forest เทรนด้วย Synthetic Data 1,000 แถว<br>
+    อ้างอิง TDS: DOWSIL™ 795 Form No. 63-1217-01-0124
+  </div>
+</aside>
+
+<!-- MAIN -->
+<main id="mainArea">
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🔬</div>
+    <h2>พร้อมวิเคราะห์</h2>
+    <p>ปรับค่าสไลเดอร์และกด "วิเคราะห์การเสื่อมสภาพ"<br>เพื่อรับผลจากโมเดล Random Forest จริง</p>
+  </div>
+  <div id="results" style="display:none; flex-direction:column; gap:16px;"></div>
+</main>
+
+<script>
+const API = "http://localhost:8000";
+let apiOnline = false;
+
+async function checkAPI() {
+  try {
+    const r = await fetch(API + "/health", {signal: AbortSignal.timeout(3000)});
+    apiOnline = r.ok;
+  } catch { apiOnline = false; }
+  const dot = document.getElementById("apiDot");
+  const lbl = document.getElementById("apiLabel");
+  dot.className = "dot " + (apiOnline ? "online" : "offline");
+  lbl.textContent = apiOnline ? "เชื่อมต่อสำเร็จ (localhost:8000)" : "ไม่พบ server — รัน app_server.py ก่อน";
+}
+
+function loadPreset(btn, t, u, r) {
+  document.querySelectorAll(".preset-btn").forEach(b => b.classList.remove("active"));
+  btn.classList.add("active");
+  document.getElementById("sTemp").value = t; document.getElementById("vTemp").textContent = t;
+  document.getElementById("sUV").value   = u; document.getElementById("vUV").textContent = u.toLocaleString();
+  document.getElementById("sRH").value   = r; document.getElementById("vRH").textContent = r;
+}
+
+function riskColor(risk) {
+  return {ปกติ:"green", ระวัง:"amber", เสื่อมสภาพ:"amber", วิกฤต:"red"}[risk] || "blue";
+}
+
+async function runPredict() {
+  const btn = document.getElementById("btnPredict");
+  const spinner = document.getElementById("spinner");
+  const lbl = document.getElementById("btnLabel");
+  const errBanner = document.getElementById("errBanner");
+
+  if (!apiOnline) {
+    errBanner.style.display = "block";
+    errBanner.textContent = "⚠ ไม่สามารถเชื่อมต่อกับ server ได้ — รัน: python app_server.py";
+    return;
+  }
+  errBanner.style.display = "none";
+  btn.disabled = true; spinner.style.display = "block"; lbl.textContent = "กำลังวิเคราะห์...";
+
+  const payload = {
+    temp_celsius:       +document.getElementById("sTemp").value,
+    uv_hours:           +document.getElementById("sUV").value,
+    relative_humidity:  +document.getElementById("sRH").value,
+  };
+
+  try {
+    const res = await fetch(API + "/predict", {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(payload),
+    });
+    const d = await res.json();
+    renderResults(d, payload);
+  } catch(e) {
+    errBanner.style.display = "block";
+    errBanner.textContent = "Error: " + e.message;
+  } finally {
+    btn.disabled = false; spinner.style.display = "none"; lbl.textContent = "🔮 วิเคราะห์การเสื่อมสภาพ";
+  }
+}
+
+function renderResults(d, inp) {
+  document.getElementById("emptyState").style.display = "none";
+  const box = document.getElementById("results");
+  box.style.display = "flex";
+  const pf = d.pass_fail === 1;
+  const rc = riskColor(d.risk_level);
+
+  box.innerHTML = `
+  <!-- Verdict -->
+  <div class="verdict-banner ${pf ? 'pass' : 'fail'} fade-in">
+    <div class="verdict-icon">${pf ? '✅' : '❌'}</div>
+    <div>
+      <div class="verdict-title" style="color:${pf ? 'var(--green)' : 'var(--red)'}">${pf ? 'PASS — ผ่านเกณฑ์' : 'FAIL — ไม่ผ่านเกณฑ์'}</div>
+      <div class="verdict-sub">ระดับความเสี่ยง: ${d.risk_level} &nbsp;·&nbsp; Input: ${inp.temp_celsius}°C · ${inp.uv_hours.toLocaleString()}h · ${inp.relative_humidity}%RH</div>
+    </div>
+    <div class="verdict-conf">
+      <div class="conf-num" style="color:${pf ? 'var(--green)' : 'var(--red)'}">${d.pass_probability}%</div>
+      <div class="conf-lbl">P(PASS)</div>
+    </div>
+  </div>
+
+  <!-- Key metrics -->
+  <div class="result-grid fade-in">
+    <div class="result-card">
+      <div class="rc-label">Elongation ลดลง</div>
+      <div class="rc-val ${rc}">${d.elongation_drop}%</div>
+      <div class="rc-sub">คงเหลือ ${d.elongation_remain}% จาก 400%</div>
+    </div>
+    <div class="result-card">
+      <div class="rc-label">Tensile ลดลง</div>
+      <div class="rc-val ${rc}">${d.tensile_drop}%</div>
+      <div class="rc-sub">คงเหลือ ${d.tensile_remain} MPa จาก 1.2 MPa</div>
+    </div>
+    <div class="result-card highlight">
+      <div class="rc-label">Arrhenius Factor</div>
+      <div class="rc-val blue">${d.arrhenius_factor}×</div>
+      <div class="rc-sub">D_eff = ${d.effective_dose.toLocaleString()} h-equiv</div>
+    </div>
+  </div>
+
+  <!-- Progress bars -->
+  <div class="bar-section fade-in">
+    <div class="section-title">Property Retention</div>
+    <div class="bar-row">
+      <div class="bar-header">
+        <span>Elongation (TDS baseline: 400%)</span>
+        <strong>${d.elongation_remain}% เหลืออยู่</strong>
+      </div>
+      <div class="bar-track"><div class="bar-fill elong" id="barElong"></div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-header">
+        <span>Tensile strength (TDS baseline: 1.2 MPa)</span>
+        <strong>${d.tensile_remain} MPa เหลืออยู่</strong>
+      </div>
+      <div class="bar-track"><div class="bar-fill tensile" id="barTensile"></div></div>
+    </div>
+  </div>
+
+  <!-- Physics -->
+  <div class="physics-panel fade-in">
+    <div class="section-title">ค่าฟิสิกส์ที่คำนวณ (Arrhenius)</div>
+    <div class="physics-grid">
+      <div class="phy-item"><div class="phy-label">temp_celsius</div><div class="phy-val">${inp.temp_celsius} °C</div></div>
+      <div class="phy-item"><div class="phy-label">uv_hours</div><div class="phy-val">${inp.uv_hours.toLocaleString()} h</div></div>
+      <div class="phy-item"><div class="phy-label">relative_humidity</div><div class="phy-val">${inp.relative_humidity} %</div></div>
+      <div class="phy-item"><div class="phy-label">arrhenius_factor</div><div class="phy-val">${d.arrhenius_factor}×</div></div>
+      <div class="phy-item" style="grid-column:1/-1"><div class="phy-label">effective_dose_h</div><div class="phy-val">${d.effective_dose.toLocaleString()} h-equiv</div></div>
+    </div>
+  </div>
+
+  <!-- Recommendation -->
+  <div class="rec-box fade-in">
+    <strong>คำแนะนำ:</strong> ${d.recommendation}
+  </div>
+  `;
+
+  // Animate bars (retention = 100 - drop)
+  setTimeout(() => {
+    document.getElementById("barElong").style.width   = Math.max(2, 100 - d.elongation_drop) + "%";
+    document.getElementById("barTensile").style.width = Math.max(2, 100 - d.tensile_drop) + "%";
+  }, 100);
+}
+
+// Check API on load and every 5s
+checkAPI();
+setInterval(checkAPI, 5000);
+</script>
+</body>
+</html>
