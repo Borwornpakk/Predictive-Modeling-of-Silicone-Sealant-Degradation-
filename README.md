@@ -543,30 +543,6 @@ This project goes significantly beyond a surface reading of the TDS. The QUV 5,0
 
 ---
 
-## File Structure
-
-```
-dowsil795-ml-predictor/
-│
-├── README.md
-├── requirements.txt
-│
-├── generate_dowsil795_synthetic.py   # Synthetic data generator (Arrhenius model)
-├── dowsil795_rf_model.py             # RF training pipeline + predict() API
-├── app_server.py                     # FastAPI backend server
-├── index.html                        # Web dashboard frontend
-│
-├── models/
-│   ├── rf_classifier.pkl             # Trained Pass/Fail classifier (753 KB)
-│   ├── rf_regressor.pkl              # Trained elongation regressor (8.4 MB)
-│   └── model_metadata.json           # Metrics, features, hyperparameters
-│
-└── data/
-    └── dowsil795_synthetic_1000.csv  # Generated synthetic dataset
-```
-
----
-
 ## Reference
 
 Dow Chemical Company. (2024). *DOWSIL™ 795 Structural Glazing Sealant — Technical Data Sheet* (Form No. 63-1217-01-0124 S2D). The Dow Chemical Company.
